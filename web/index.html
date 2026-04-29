@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mainger-agent</title>
+<link rel="stylesheet" href="https://unpkg.com/highlight.js@11.9.0/styles/github.css" />
+<link rel="stylesheet" href="https://unpkg.com/katex@0.16.11/dist/katex.min.css" />
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --surface-2: #f5f5f4;
+    --border: #e5e5e2; --border-strong: #d4d4d1;
+    --text: #1a1a1a; --muted: #6b7280;
+    --accent: #1f2937; --accent-hover: #111827;
+    --accent-soft: #eef2ff;
+    --user-bubble: #f0f9ff; --user-border: #bae6fd;
+    --assistant-bubble: #ffffff;
+    --error-bg: #fef2f2; --error-border: #fca5a5; --error-text: #991b1b;
+    --success: #059669;
+    --tool-bg: #f0fdf4; --tool-border: #86efac;
+    --warn-bg: #fffbeb; --warn-border: #fcd34d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.55; height: 100%; }
+  #root { min-height: 100%; }
+
+  .app {
+    display: grid; grid-template-rows: auto auto 1fr auto;
+    min-height: 100vh; max-width: 1100px; margin: 0 auto;
+    padding: 16px 24px 0;
+  }
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px; margin-bottom: 14px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header .meta { color: var(--muted); font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .setup-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
+    font-size: 13px; color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .setup-banner .left { display: flex; gap: 14px; flex-wrap: wrap; }
+  .setup-banner strong { color: var(--text); font-weight: 500; }
+
+  form.setup {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin-bottom: 16px;
+  }
+  fieldset { border: none; padding: 0; margin: 0 0 18px; }
+  legend { font-weight: 600; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); margin-bottom: 10px; padding: 0; }
+  .field { display: flex; flex-direction: column; margin-bottom: 12px; }
+  .field label { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .field input[type=text], .field input[type=password],
+  .field input[type=number], .field input[type=url],
+  .field select, .field textarea {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: white; font: inherit; font-size: 14px;
+  }
+  .field input[type=file] { font: inherit; font-size: 13px; padding: 4px 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+  .api-key-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+  .api-key-row button {
+    padding: 8px 12px; border: 1px solid var(--border); background: white;
+    border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px;
+  }
+  button.primary {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 18px; border-radius: 6px;
+    font: inherit; font-weight: 500; font-size: 14px; cursor: pointer;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--border); padding: 6px 12px;
+    border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  button.ghost:hover { background: var(--surface-2); }
+  button.icon-btn {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; cursor: pointer; font-size: 13px;
+  }
+  button.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  button.icon-btn.active { background: var(--accent-soft); color: var(--accent); border-color: #c7d2fe; }
+  button.copy-btn {
+    background: white; color: var(--muted); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 4px; font: inherit; font-size: 12px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  button.copy-btn:hover { background: var(--surface-2); color: var(--text); }
+  button.copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-border);
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 14px;
+    font-size: 13px; color: #78350f; }
+  .error { background: var(--error-bg); border: 1px solid var(--error-border);
+    color: var(--error-text); padding: 12px 14px; border-radius: 6px;
+    margin: 12px 0; font-size: 14px; }
+  .error pre { margin-top: 8px; font-size: 12px; white-space: pre-wrap;
+    word-break: break-word; background: rgba(0,0,0,0.04);
+    padding: 8px; border-radius: 4px; max-height: 240px; overflow-y: auto; }
+
+  .thread { flex: 1 1 auto; overflow-y: auto; padding: 8px 0 12px; }
+  .turn { margin-bottom: 14px; }
+  .turn-user .bubble {
+    background: var(--user-bubble); border: 1px solid var(--user-border);
+    border-radius: 12px 12px 4px 12px;
+    padding: 10px 14px; max-width: 80%; margin-left: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .turn-assistant .bubble {
+    background: var(--assistant-bubble); border: 1px solid var(--border);
+    border-radius: 12px 12px 12px 4px;
+    padding: 14px 16px;
+  }
+  .turn-meta {
+    font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .turn-user .turn-meta { text-align: right; }
+
+  details.tool-trace { margin: 8px 0; }
+  details.tool-trace summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; }
+  .timeline { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .timeline-item { display: flex; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: 12px; }
+  .timeline-item.tool-call { background: var(--accent-soft); }
+  .timeline-item.tool-result { background: var(--tool-bg); border-left: 3px solid var(--tool-border); }
+  .timeline-item.llm-call { color: var(--muted); font-style: italic; }
+  .timeline-item .icon { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .timeline-item code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+    background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px;
+  }
+
+  .artifacts { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+  .tabs button {
+    background: none; border: none; padding: 8px 14px; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 500;
+    color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--text); }
+  .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab-panel { padding: 14px 4px; min-height: 80px; position: relative; }
+  .tab-panel .copy-btn { position: absolute; top: 6px; right: 0; }
+  .tab-panel pre {
+    background: var(--surface-2); padding: 12px 14px;
+    border-radius: 6px; overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; line-height: 1.5; margin: 0;
+  }
+  .tab-panel pre code.hljs { background: none; padding: 0; }
+  .markdown h1 { font-size: 20px; margin-top: 0; }
+  .markdown h2 { font-size: 16px; margin-top: 18px; }
+  .markdown h3 { font-size: 14px; }
+  .markdown table { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  .markdown th, .markdown td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; }
+  .markdown th { background: var(--surface-2); font-weight: 600; }
+  .markdown code { background: var(--surface-2); padding: 2px 5px; border-radius: 3px; font-size: 13px; }
+  .markdown pre code { background: none; padding: 0; }
+  .markdown .katex { font-size: 1.05em; }
+  .markdown .katex-display { margin: 0.6em 0; }
+
+  .download-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  .composer {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; margin: 0 0 16px;
+  }
+  .composer-row { display: flex; gap: 8px; align-items: flex-end; }
+  .composer textarea {
+    flex: 1 1 auto; resize: vertical;
+    min-height: 44px; max-height: 240px;
+    border: none; outline: none;
+    padding: 8px 6px; font: inherit; font-size: 14px;
+    background: transparent;
+  }
+  .composer .actions { display: flex; gap: 6px; }
+  .attached-files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .file-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); border: 1px solid #c7d2fe;
+    border-radius: 14px; padding: 3px 4px 3px 10px; font-size: 12px;
+  }
+  .file-chip select {
+    background: white; border: 1px solid var(--border);
+    border-radius: 10px; padding: 2px 6px; font-size: 11px;
+  }
+  .file-chip button {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); padding: 2px 6px;
+  }
+  .file-chip button:hover { color: var(--error-text); }
+
+  .composer-options {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 8px; padding: 10px;
+    background: var(--surface-2); border-radius: 8px;
+  }
+  .composer-options .opt-field { display: flex; flex-direction: column; gap: 2px; }
+  .composer-options label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .composer-options input {
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px;
+    background: white; font: inherit; font-size: 13px;
+  }
+  @media (max-width: 640px) { .composer-options { grid-template-columns: 1fr; } }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+  <script src="https://unpkg.com/marked@13/marked.min.js"></script>
+  <script src="https://unpkg.com/highlight.js@11.9.0/lib/core.min.js"></script>
+  <script src="https://unpkg.com/highlight.js@11.9.0/lib/languages/r.min.js"></script>
+  <script src="https://unpkg.com/highlight.js@11.9.0/lib/languages/json.min.js"></script>
+  <script src="https://unpkg.com/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://unpkg.com/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+
+    function CodeBlock({ code, language }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current && language) {
+          try { ref.current.innerHTML = hljs.highlight(code || "", { language }).value; }
+          catch (_) { ref.current.textContent = code || ""; }
+        }
+      }, [code, language]);
+      return <pre><code ref={ref} className={`hljs language-${language}`}>{code}</code></pre>;
+    }
+    function CopyButton({ text }) {
+      const [copied, setCopied] = useState(false);
+      function copy() {
+        navigator.clipboard.writeText(text || "").then(() => {
+          setCopied(true); setTimeout(() => setCopied(false), 1500);
+        });
+      }
+      return <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={copy}>
+        {copied ? "✓ Copied" : "Copy"}
+      </button>;
+    }
+    function Markdown({ text }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (!ref.current) return;
+        ref.current.innerHTML = marked.parse(text || "", { breaks: true });
+        if (window.renderMathInElement) {
+          try {
+            window.renderMathInElement(ref.current, {
+              delimiters: [
+                { left: "$$", right: "$$", display: true  },
+                { left: "$",  right: "$",  display: false },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "\\[", right: "\\]", display: true  },
+              ],
+              throwOnError: false,
+              ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+            });
+          } catch (_) {}
+        }
+      }, [text]);
+      return <div className="markdown" ref={ref} />;
+    }
+    function shortJson(obj) {
+      const s = JSON.stringify(obj);
+      return s.length > 80 ? s.slice(0, 80) + "..." : s;
+    }
+    function downloadFile(filename, content, mime) {
+      const blob = new Blob([content || ""], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function App() {
+      const [config, setConfig] = useState(null);
+      const [sid, setSid] = useState(null);
+      const [meta, setMeta] = useState(null);
+      const [vendor, setVendor] = useState("");
+      const [model, setModel]   = useState("");
+      const [apiKey, setApiKey] = useState("");
+      const [showApiKey, setShowApiKey] = useState(false);
+      const [baseUrl, setBaseUrl] = useState("");
+
+      const [setupFiles, setSetupFiles] = useState({
+        internal: null, external_coef: null,
+        external_sigma: null, reference_sigma: null,
+      });
+      const [setupRegime, setSetupRegime] = useState("");
+      const [setupSigma2Int, setSetupSigma2Int] = useState("");
+      const [setupSigma2Ext, setSetupSigma2Ext] = useState("");
+      const [setupNExt, setSetupNExt] = useState("");
+      const [setupMessage, setSetupMessage] = useState(
+        "Please analyze my data and produce the integration report, code, and explanation."
+      );
+
+      const [turns, setTurns] = useState([]);
+      const [running, setRunning] = useState(false);
+      const [error, setError] = useState(null);
+      const threadRef = useRef(null);
+
+      useEffect(() => {
+        fetch("/api/config").then(r => r.json()).then((c) => {
+          setConfig(c);
+          if (!vendor) setVendor(c.vendor || "");
+          if (!model)  setModel(c.model || "");
+        }).catch(() => setConfig({ vendor: "?", model: "?", vendors: {} }));
+      }, []);
+
+      const vendors = (config && config.vendors) || {};
+      const vendorInfo = vendors[vendor];
+      const availableModels = vendorInfo?.models || [];
+
+      // When vendor changes: switch model to first suggestion (if user-typed
+      // model isn't in the new vendor's list AND user hasn't customized).
+      useEffect(() => {
+        if (vendorInfo && availableModels.length > 0 && !availableModels.includes(model)) {
+          setModel(availableModels[0]);
+        }
+        // For "custom" vendor, clear model to force user input
+        if (vendorInfo && availableModels.length === 0) {
+          setModel("");
+        }
+      }, [vendor]);
+
+      useEffect(() => {
+        if (threadRef.current) {
+          threadRef.current.scrollTop = threadRef.current.scrollHeight;
+        }
+      }, [turns, running]);
+
+      async function streamRequest(url, formData) {
+        const resp = await fetch(url, { method: "POST", body: formData });
+        if (!resp.ok || !resp.body) {
+          const text = await resp.text();
+          throw new Error(`Server returned ${resp.status}: ${text.slice(0, 500)}`);
+        }
+        const inProgress = { role: "assistant", events: [], inProgress: true };
+        setTurns(prev => [...prev, inProgress]);
+
+        function patch(fn) {
+          setTurns(prev => {
+            const arr = prev.slice();
+            arr[arr.length - 1] = fn(arr[arr.length - 1]);
+            return arr;
+          });
+        }
+
+        await consumeSse(resp.body, (ev) => {
+          if (ev.type === "init") {
+            setSid(ev.sid); setMeta(ev.metadata);
+          } else if (ev.type === "chat_turn") {
+            // ignore; we render our own optimistic user turn
+          } else if (ev.type === "complete") {
+            patch(t => ({ ...t, artifacts: ev.artifacts, inProgress: false }));
+          } else if (ev.type === "complete_text") {
+            patch(t => ({ ...t, text: ev.text, inProgress: false }));
+          } else if (ev.type === "error") {
+            setError({ message: ev.error, traceback: ev.traceback });
+            patch(t => ({ ...t, inProgress: false, error: ev.error }));
+          } else {
+            patch(t => ({ ...t, events: [...(t.events || []), ev] }));
+          }
+        });
+      }
+
+      async function handleSetupSubmit(e) {
+        e.preventDefault();
+        if (!setupFiles.internal || !setupFiles.external_coef) {
+          setError({ message: "Internal data and external coefficients are required." });
+          return;
+        }
+        if (vendorInfo?.needs_url && !baseUrl) {
+          setError({ message: "This vendor requires a Base URL." });
+          return;
+        }
+        setRunning(true); setError(null);
+
+        const fd = new FormData();
+        fd.append("internal", setupFiles.internal);
+        fd.append("external_coef", setupFiles.external_coef);
+        if (setupFiles.external_sigma)  fd.append("external_sigma", setupFiles.external_sigma);
+        if (setupFiles.reference_sigma) fd.append("reference_sigma", setupFiles.reference_sigma);
+        if (setupRegime)    fd.append("regime", setupRegime);
+        if (setupSigma2Int) fd.append("sigma2_int", setupSigma2Int);
+        if (setupSigma2Ext) fd.append("sigma2_ext", setupSigma2Ext);
+        if (setupNExt)      fd.append("n_ext", setupNExt);
+        if (vendor)         fd.append("vendor", vendor);
+        if (model)          fd.append("model", model);
+        if (apiKey)         fd.append("api_key", apiKey);
+        if (baseUrl)        fd.append("base_url", baseUrl);
+        fd.append("message", setupMessage);
+
+        setTurns(prev => [...prev, { role: "user", text: setupMessage }]);
+
+        try { await streamRequest("/api/sessions/init", fd); }
+        catch (e) { setError({ message: e.message }); }
+        finally { setRunning(false); }
+      }
+
+      async function handleFollowup(message, attachments, params) {
+        if (!sid) return;
+        setRunning(true); setError(null);
+
+        const fd = new FormData();
+        fd.append("message", message);
+        for (const att of attachments) {
+          fd.append(`file_${att.role}`, att.file);
+        }
+        if (params) {
+          if (params.n_ext)      fd.append("n_ext", params.n_ext);
+          if (params.sigma2_int) fd.append("sigma2_int", params.sigma2_int);
+          if (params.sigma2_ext) fd.append("sigma2_ext", params.sigma2_ext);
+        }
+
+        const noteParts = [];
+        if (attachments.length) {
+          noteParts.push(...attachments.map(a => `${a.role}: ${a.file.name}`));
+        }
+        if (params) {
+          if (params.n_ext)      noteParts.push(`n_ext = ${params.n_ext}`);
+          if (params.sigma2_int) noteParts.push(`sigma2_int = ${params.sigma2_int}`);
+          if (params.sigma2_ext) noteParts.push(`sigma2_ext = ${params.sigma2_ext}`);
+        }
+        const noteSummary = noteParts.length ? "\n\n[" + noteParts.join(", ") + "]" : "";
+        const displayText = (message || "(session update)") + noteSummary;
+        setTurns(prev => [...prev, { role: "user", text: displayText }]);
+
+        try { await streamRequest(`/api/sessions/${sid}/chat`, fd); }
+        catch (e) { setError({ message: e.message }); }
+        finally { setRunning(false); }
+      }
+
+      function newSession() {
+        if (sid) fetch(`/api/sessions/${sid}`, { method: "DELETE" }).catch(() => {});
+        setSid(null); setMeta(null); setTurns([]); setError(null);
+      }
+
+      return (
+        <div className="app">
+          <header>
+            <h1>mainger-agent</h1>
+            <div className="meta">
+              {config ? `${vendor || config.vendor} • ${model || config.model}` : "loading..."}
+              {sid && <span> • session <code>{sid}</code></span>}
+            </div>
+          </header>
+
+          {sid && meta && (
+            <div className="setup-banner">
+              <div className="left">
+                <span><strong>n_int:</strong> {meta.n_int ?? "–"}</span>
+                <span><strong>n_ext:</strong> {meta.n_ext ?? "–"}</span>
+                <span><strong>p:</strong> {meta.p ?? "–"}</span>
+                <span><strong>full data:</strong> {meta.has_internal_individual_data ? "✓" : "–"}</span>
+                <span><strong>Σ_ext:</strong> {meta.has_external_sigma2 ? "✓" : "–"}</span>
+                <span><strong>ref panel:</strong> {meta.has_reference_panel ? "✓" : "–"}</span>
+              </div>
+              <button className="ghost" onClick={newSession}>New session</button>
+            </div>
+          )}
+
+          {error && <ErrorPanel error={error} onDismiss={() => setError(null)} />}
+
+          {!sid && (
+            <SetupForm {...{
+              config, vendors, vendorInfo, availableModels,
+              vendor, setVendor, model, setModel, apiKey, setApiKey,
+              showApiKey, setShowApiKey, baseUrl, setBaseUrl,
+              files: setupFiles, setFiles: setSetupFiles,
+              regime: setupRegime, setRegime: setSetupRegime,
+              sigma2Int: setupSigma2Int, setSigma2Int: setSetupSigma2Int,
+              sigma2Ext: setupSigma2Ext, setSigma2Ext: setSetupSigma2Ext,
+              nExt: setupNExt, setNExt: setSetupNExt,
+              message: setupMessage, setMessage: setSetupMessage,
+              onSubmit: handleSetupSubmit, running,
+            }} />
+          )}
+
+          {sid && (
+            <>
+              <div className="thread" ref={threadRef}>
+                {turns.length === 0 && (<div className="empty-state">No messages yet.</div>)}
+                {turns.map((t, i) => <Turn key={i} turn={t} />)}
+              </div>
+              <Composer onSend={handleFollowup} disabled={running} />
+            </>
+          )}
+        </div>
+      );
+    }
+
+    function ErrorPanel({ error, onDismiss }) {
+      return (
+        <div className="error">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div><strong>Error:</strong> {error.message}</div>
+            <button className="copy-btn" onClick={onDismiss}>×</button>
+          </div>
+          {error.traceback && <pre>{error.traceback}</pre>}
+        </div>
+      );
+    }
+
+    function VendorSelect({ vendors, vendor, setVendor }) {
+      // Group by kind
+      const closedVendors = Object.entries(vendors).filter(([_, v]) => v.kind === "closed");
+      const openVendors   = Object.entries(vendors).filter(([_, v]) => v.kind === "open");
+      return (
+        <select value={vendor} onChange={(e) => setVendor(e.target.value)}>
+          {closedVendors.length > 0 && (
+            <optgroup label="Closed (hosted APIs)">
+              {closedVendors.map(([k, v]) =>
+                <option key={k} value={k}>{v.label}</option>)}
+            </optgroup>
+          )}
+          {openVendors.length > 0 && (
+            <optgroup label="Open-source (via inference providers)">
+              {openVendors.map(([k, v]) =>
+                <option key={k} value={k}>{v.label}</option>)}
+            </optgroup>
+          )}
+        </select>
+      );
+    }
+
+    function SetupForm(props) {
+      const { config, vendors, vendorInfo, availableModels,
+              vendor, setVendor, model, setModel, apiKey, setApiKey,
+              showApiKey, setShowApiKey, baseUrl, setBaseUrl,
+              files, setFiles, regime, setRegime,
+              sigma2Int, setSigma2Int, sigma2Ext, setSigma2Ext,
+              nExt, setNExt, message, setMessage,
+              onSubmit, running } = props;
+      const setFile = (name) => (e) => setFiles({ ...files, [name]: e.target.files[0] || null });
+      const datalistId = "model-suggestions";
+      return (
+        <form className="setup" onSubmit={onSubmit}>
+          <fieldset>
+            <legend>Required inputs</legend>
+            <div className="row">
+              <div className="field">
+                <label>Internal data (CSV or Parquet)</label>
+                <input type="file" accept=".csv,.parquet,.tsv,.txt" onChange={setFile("internal")} />
+                <span className="hint">First column is the response Y; remaining columns are predictors.</span>
+              </div>
+              <div className="field">
+                <label>External coefficients (CSV or Parquet)</label>
+                <input type="file" accept=".csv,.parquet,.tsv,.txt" onChange={setFile("external_coef")} />
+                <span className="hint">Two columns: <code>variable, estimate</code>.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Optional — regime-specific</legend>
+            <div className="row">
+              <div className="field">
+                <label>External Σ₂ (full regime)</label>
+                <input type="file" accept=".csv,.parquet" onChange={setFile("external_sigma")} />
+              </div>
+              <div className="field">
+                <label>Reference Σ (restricted regime)</label>
+                <input type="file" accept=".csv,.parquet" onChange={setFile("reference_sigma")} />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Optional — hints &amp; parameters</legend>
+            <div className="row">
+              <div className="field">
+                <label>Regime hint</label>
+                <select value={regime} onChange={(e) => setRegime(e.target.value)}>
+                  <option value="">Auto-detect</option>
+                  <option value="full">Full</option>
+                  <option value="partial">Partial</option>
+                  <option value="restricted">Restricted</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>n_ext</label>
+                <input type="number" value={nExt} onChange={(e) => setNExt(e.target.value)} placeholder="e.g. 8000" />
+              </div>
+              <div className="field">
+                <label>sigma2_int</label>
+                <input type="number" step="any" value={sigma2Int} onChange={(e) => setSigma2Int(e.target.value)} placeholder="optional" />
+              </div>
+              <div className="field">
+                <label>sigma2_ext</label>
+                <input type="number" step="any" value={sigma2Ext} onChange={(e) => setSigma2Ext(e.target.value)} placeholder="optional" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>LLM</legend>
+            <div className="warn">
+              <strong>Local-only:</strong> the API key you enter here is sent to the
+              server running on this machine and used in-memory for one request.
+              It is not stored or logged.
+            </div>
+            <div className="row">
+              <div className="field">
+                <label>Vendor</label>
+                <VendorSelect vendors={vendors} vendor={vendor} setVendor={setVendor} />
+              </div>
+              <div className="field">
+                <label>Model {availableModels.length > 0 && <span className="hint" style={{display: "inline", marginTop: 0}}>(or type any model name)</span>}</label>
+                <input
+                  type="text" list={datalistId}
+                  value={model} onChange={(e) => setModel(e.target.value)}
+                  placeholder={availableModels[0] || "e.g. Qwen/Qwen2.5-7B-Instruct"}
+                />
+                <datalist id={datalistId}>
+                  {availableModels.map(m => <option key={m} value={m} />)}
+                </datalist>
+              </div>
+            </div>
+
+            {(vendorInfo?.needs_url || vendorInfo?.kind === "open") && (
+              <div className="field">
+                <label>
+                  Base URL {vendorInfo?.needs_url ? "(required)" : "(override; leave blank for default)"}
+                </label>
+                <input
+                  type="url" value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={vendorInfo?.base_url || "https://your-endpoint/v1"}
+                />
+                <span className="hint">
+                  {vendorInfo?.base_url
+                    ? <>Default: <code>{vendorInfo.base_url}</code></>
+                    : "OpenAI-compatible endpoint URL"}
+                </span>
+              </div>
+            )}
+
+            <div className="field">
+              <label>API key (optional — falls back to <code>.env</code>)</label>
+              <div className="api-key-row">
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..." autoComplete="off"
+                />
+                <button type="button" onClick={() => setShowApiKey(!showApiKey)}>
+                  {showApiKey ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Initial message</legend>
+            <div className="field">
+              <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
+            </div>
+          </fieldset>
+
+          <button className="primary" type="submit" disabled={running}>
+            {running ? "Starting..." : "Start session"}
+          </button>
+        </form>
+      );
+    }
+
+    function Turn({ turn }) {
+      if (turn.role === "user") {
+        return (
+          <div className="turn turn-user">
+            <div className="turn-meta">You</div>
+            <div className="bubble">{turn.text}</div>
+          </div>
+        );
+      }
+      return <AssistantTurn turn={turn} />;
+    }
+
+    function AssistantTurn({ turn }) {
+      const [tab, setTab] = useState("report");
+      const events = turn.events || [];
+      const traceEvents = events.filter(e =>
+        e.type === "tool_call" || e.type === "tool_result" || e.type === "llm_call"
+      );
+
+      return (
+        <div className="turn turn-assistant">
+          <div className="turn-meta">mainger-agent {turn.inProgress && <span>· <span className="spinner"></span> thinking</span>}</div>
+          <div className="bubble">
+            {turn.text && <Markdown text={turn.text} />}
+
+            {traceEvents.length > 0 && (
+              <details className="tool-trace" open={turn.inProgress}>
+                <summary>{turn.inProgress ? "Working..." : `${traceEvents.length} steps in trace`}</summary>
+                <div className="timeline">
+                  {traceEvents.map((ev, i) => <TimelineItem key={i} ev={ev} />)}
+                </div>
+              </details>
+            )}
+
+            {turn.artifacts && (
+              <div className="artifacts">
+                <div className="tabs">
+                  {["report", "code", "explanation"].map(id =>
+                    <button key={id} onClick={() => setTab(id)} className={tab === id ? "active" : ""}>
+                      {id.charAt(0).toUpperCase() + id.slice(1)}
+                    </button>
+                  )}
+                </div>
+                <div className="tab-panel">
+                  {tab === "report" && (<>
+                    <CopyButton text={turn.artifacts["report.md"]} />
+                    <Markdown text={turn.artifacts["report.md"]} />
+                  </>)}
+                  {tab === "code" && (<>
+                    <CopyButton text={turn.artifacts["analysis.R"]} />
+                    <CodeBlock code={turn.artifacts["analysis.R"]} language="r" />
+                  </>)}
+                  {tab === "explanation" && (<>
+                    <CopyButton text={turn.artifacts["explanation.md"]} />
+                    <Markdown text={turn.artifacts["explanation.md"]} />
+                  </>)}
+                </div>
+                <div className="download-bar">
+                  <button className="ghost" onClick={() => downloadFile("report.md", turn.artifacts["report.md"], "text/markdown")}>↓ report.md</button>
+                  <button className="ghost" onClick={() => downloadFile("analysis.R", turn.artifacts["analysis.R"], "text/plain")}>↓ analysis.R</button>
+                  <button className="ghost" onClick={() => downloadFile("explanation.md", turn.artifacts["explanation.md"], "text/markdown")}>↓ explanation.md</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function TimelineItem({ ev }) {
+      if (ev.type === "llm_call") return (
+        <div className="timeline-item llm-call"><span className="icon">→</span><span>LLM call (step {ev.step})...</span></div>
+      );
+      if (ev.type === "tool_call") return (
+        <div className="timeline-item tool-call">
+          <span className="icon">🔧</span>
+          <span><strong>{ev.name}</strong> <code>{shortJson(ev.args)}</code></span>
+        </div>
+      );
+      if (ev.type === "tool_result") return (
+        <div className="timeline-item tool-result">
+          <span className="icon">←</span>
+          <span><strong>{ev.name}</strong> returned <code>{shortJson(ev.result)}</code></span>
+        </div>
+      );
+      return null;
+    }
+
+    function Composer({ onSend, disabled }) {
+      const [text, setText] = useState("");
+      const [attachments, setAttachments] = useState([]);
+      const [showOptions, setShowOptions] = useState(false);
+      const [nExt, setNExt] = useState("");
+      const [sigma2Int, setSigma2Int] = useState("");
+      const [sigma2Ext, setSigma2Ext] = useState("");
+      const fileInputRef = useRef(null);
+      const ROLES = [
+        { value: "internal",        label: "Internal data" },
+        { value: "external_coef",   label: "External coefs" },
+        { value: "external_sigma",  label: "External Σ" },
+        { value: "reference_sigma", label: "Reference Σ" },
+      ];
+      const hasParams = nExt || sigma2Int || sigma2Ext;
+
+      function pickFile() { if (fileInputRef.current) fileInputRef.current.click(); }
+      function onFileChosen(e) {
+        const files = Array.from(e.target.files || []);
+        const next = files.map(f => ({ file: f, role: "internal" }));
+        setAttachments(a => [...a, ...next]);
+        e.target.value = "";
+      }
+      function setRole(idx, role) {
+        setAttachments(a => { const c = a.slice(); c[idx] = { ...c[idx], role }; return c; });
+      }
+      function removeAttachment(idx) {
+        setAttachments(a => a.filter((_, i) => i !== idx));
+      }
+      function send() {
+        const params = { n_ext: nExt, sigma2_int: sigma2Int, sigma2_ext: sigma2Ext };
+        const hasContent = text.trim() || attachments.length > 0 || hasParams;
+        if (!hasContent) return;
+        onSend(text.trim(), attachments, params);
+        setText(""); setAttachments([]);
+        setNExt(""); setSigma2Int(""); setSigma2Ext("");
+        setShowOptions(false);
+      }
+      function onKey(e) {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault(); send();
+        }
+      }
+
+      return (
+        <div className="composer">
+          {attachments.length > 0 && (
+            <div className="attached-files">
+              {attachments.map((att, i) => (
+                <div key={i} className="file-chip">
+                  <span>{att.file.name}</span>
+                  <select value={att.role} onChange={(e) => setRole(i, e.target.value)}>
+                    {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                  <button onClick={() => removeAttachment(i)} title="Remove">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showOptions && (
+            <div className="composer-options">
+              <div className="opt-field">
+                <label>n_ext</label>
+                <input type="number" value={nExt} onChange={(e) => setNExt(e.target.value)} placeholder="e.g. 20000" />
+              </div>
+              <div className="opt-field">
+                <label>sigma2_int</label>
+                <input type="number" step="any" value={sigma2Int} onChange={(e) => setSigma2Int(e.target.value)} placeholder="optional" />
+              </div>
+              <div className="opt-field">
+                <label>sigma2_ext</label>
+                <input type="number" step="any" value={sigma2Ext} onChange={(e) => setSigma2Ext(e.target.value)} placeholder="optional" />
+              </div>
+            </div>
+          )}
+          <div className="composer-row">
+            <textarea
+              placeholder="Ask a follow-up, request a re-run, attach a file, or update parameters..."
+              value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey}
+              disabled={disabled}
+            />
+            <div className="actions">
+              <input type="file" multiple accept=".csv,.parquet,.tsv,.txt"
+                ref={fileInputRef} onChange={onFileChosen} style={{ display: "none" }} />
+              <button
+                className={`icon-btn ${(showOptions || hasParams) ? "active" : ""}`}
+                onClick={() => setShowOptions(!showOptions)}
+                disabled={disabled}
+                title="Show parameter inputs (n_ext, sigma2_int, sigma2_ext)"
+              >⚙{hasParams ? "•" : ""}</button>
+              <button className="icon-btn" onClick={pickFile} disabled={disabled} title="Attach files">📎</button>
+              <button className="primary" onClick={send} disabled={disabled}>
+                {disabled ? "..." : "Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    async function consumeSse(stream, onEvent) {
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const dataLines = chunk.split("\n").filter(l => l.startsWith("data:"))
+            .map(l => l.slice(5).trim()).filter(Boolean);
+          for (const dataStr of dataLines) {
+            try { onEvent(JSON.parse(dataStr)); } catch (_) {}
+          }
+        }
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

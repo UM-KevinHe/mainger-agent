@@ -1,0 +1,9 @@
+# FILL IN: choose your vendor and model.
+# Supported vendors: anthropic, openai
+# Models are the vendor-native names; check the vendor's docs for what's current.
+
+vendor: openai
+model: gpt-4o-mini
+max_tokens: 4096
+temperature: 0.0
+max_tool_iterations: 8
