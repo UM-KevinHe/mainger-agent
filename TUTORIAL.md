@@ -21,11 +21,11 @@ matches what you are trying to do.
 
 ```mermaid
 flowchart TD
-    Start([What do you want to do?]) --> Q1{Are you running<br/>this for the first time?}
+    Start([What do you want to do?]) --> Q1{First timerunning this?}
 
-    Q1 -->|Yes, just want to try it| TryPath
-    Q1 -->|No, I want to share with collaborators| DeployPath
-    Q1 -->|No, I want to extend the tool| ContribPath
+    Q1 -->|Try it now| TryPath
+    Q1 -->|Share with team| DeployPath
+    Q1 -->|Extend the tool| ContribPath
 
     TryPath[<b>Path A: Quickstart</b><br/>~10 min]
     TryPath --> S1[Section 1 — Prerequisites]
